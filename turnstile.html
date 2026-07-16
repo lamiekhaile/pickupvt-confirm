@@ -34,6 +34,30 @@
     function onVerify(token) { post("verify", token); }
     function onError(code) { post("error", code); }
     function onExpire() { post("expire"); }
+
+    // The widget escalates from a small checkbox (~65px) to a full
+    // interactive challenge (~300px) depending on risk signals. Without
+    // reporting actual rendered height back to the RN side, an
+    // escalated challenge renders past the fixed container and is
+    // impossible to tap — looks identical to a permanently stuck
+    // spinner. Poll and report height changes so the container can
+    // grow to fit.
+    var lastHeight = 0;
+    setInterval(function () {
+      var h = document.body.scrollHeight;
+      if (h > 0 && h !== lastHeight) {
+        lastHeight = h;
+        post("resize", h);
+      }
+    }, 300);
+
+    // If the Cloudflare script itself never loads (e.g. blocked by a
+    // campus network's filtering), there's otherwise no error signal
+    // at all — the div just sits empty forever. Surface that as an
+    // explicit error after a timeout instead of hanging silently.
+    setTimeout(function () {
+      if (typeof turnstile === "undefined") post("error", "script_load_timeout");
+    }, 10000);
   </script>
 </body>
 </html>
