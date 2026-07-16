@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verification</title>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+</style>
+</head>
+<body>
+  <div
+    class="cf-turnstile"
+    data-sitekey="0x4AAAAAAD3PZ0cdkeBq0kX9"
+    data-callback="onVerify"
+    data-error-callback="onError"
+    data-expired-callback="onExpire"
+    data-theme="light"
+  ></div>
+  <script>
+    function post(type, detail) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, detail: detail || null }));
+      }
+    }
+    function onVerify(token) { post("verify", token); }
+    function onError(code) { post("error", code); }
+    function onExpire() { post("expire"); }
+  </script>
+</body>
+</html>
