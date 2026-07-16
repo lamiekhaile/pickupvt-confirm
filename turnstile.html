@@ -8,15 +8,19 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: transparent;
+    font-family: -apple-system, sans-serif;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    gap: 16px;
   }
+  p { color: #555; font-size: 14px; }
 </style>
 </head>
 <body>
+  <p id="status">Verifying you're human&hellip;</p>
   <div
     class="cf-turnstile"
     data-sitekey="0x4AAAAAAD3PZ0cdkeBq0kX9"
@@ -26,37 +30,37 @@
     data-theme="light"
   ></div>
   <script>
-    function post(type, detail) {
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, detail: detail || null }));
-      }
+    // Loaded in a real system-browser session (ASWebAuthenticationSession /
+    // Custom Tabs via expo-web-browser), not an embedded WebView — a plain
+    // WKWebView blocks the cross-origin storage/cookie access Turnstile's
+    // challenge iframe needs, which is what made the old embedded version
+    // hang on Cloudflare's own spinner forever. A real browser session
+    // doesn't have that restriction. Communication back to the app is via
+    // redirecting to the app's custom URL scheme instead of postMessage,
+    // since there's no WebView bridge in this context.
+    function redirect(params) {
+      var qs = Object.keys(params)
+        .map(function (k) { return k + "=" + encodeURIComponent(params[k]); })
+        .join("&");
+      window.location.href = "pickupvt://captcha-callback?" + qs;
     }
-    function onVerify(token) { post("verify", token); }
-    function onError(code) { post("error", code); }
-    function onExpire() { post("expire"); }
+    function onVerify(token) {
+      document.getElementById("status").textContent = "Verified — returning to the app…";
+      redirect({ token: token });
+    }
+    function onError(code) {
+      document.getElementById("status").textContent = "Verification failed — returning to the app…";
+      redirect({ error: code || "unknown" });
+    }
+    function onExpire() {
+      redirect({ error: "expired" });
+    }
 
-    // The widget escalates from a small checkbox (~65px) to a full
-    // interactive challenge (~300px) depending on risk signals. Without
-    // reporting actual rendered height back to the RN side, an
-    // escalated challenge renders past the fixed container and is
-    // impossible to tap — looks identical to a permanently stuck
-    // spinner. Poll and report height changes so the container can
-    // grow to fit.
-    var lastHeight = 0;
-    setInterval(function () {
-      var h = document.body.scrollHeight;
-      if (h > 0 && h !== lastHeight) {
-        lastHeight = h;
-        post("resize", h);
-      }
-    }, 300);
-
-    // If the Cloudflare script itself never loads (e.g. blocked by a
-    // campus network's filtering), there's otherwise no error signal
-    // at all — the div just sits empty forever. Surface that as an
-    // explicit error after a timeout instead of hanging silently.
     setTimeout(function () {
-      if (typeof turnstile === "undefined") post("error", "script_load_timeout");
+      if (typeof turnstile === "undefined") {
+        document.getElementById("status").textContent = "Couldn't load verification — returning to the app…";
+        redirect({ error: "script_load_timeout" });
+      }
     }, 10000);
   </script>
 </body>
